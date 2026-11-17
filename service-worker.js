@@ -1,4 +1,4 @@
-const CACHE_NAME = "va-rovieng-v169";
+const CACHE_NAME = "va-rovieng-v170";
 const APP_SHELL = [
   "./",
   "./index.html",
