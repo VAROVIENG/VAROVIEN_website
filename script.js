@@ -15,6 +15,11 @@ const photoDialogImage = document.querySelector("#photo-dialog-image");
 const photoDialogCaption = document.querySelector("#photo-dialog-caption");
 const photoDialogViewport = photoDialog?.querySelector(".photo-dialog-viewport");
 const photoZoomLevel = photoDialog?.querySelector(".photo-zoom-level");
+const photoZoomOut = photoDialog?.querySelector(".photo-zoom-out");
+const photoZoomIn = photoDialog?.querySelector(".photo-zoom-in");
+const photoPrevious = photoDialog?.querySelector(".photo-previous");
+const photoNext = photoDialog?.querySelector(".photo-next");
+const photoNavigationStatus = photoDialog?.querySelector(".photo-navigation-status");
 const projectMapTrigger = document.querySelector(".project-map-trigger");
 const pageTransitionOverlay = document.querySelector(".page-transition-overlay");
 const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -25,6 +30,14 @@ let photoPanY = 0;
 let photoPinchState = null;
 let photoPointerMoved = false;
 let photoIgnoreNextClick = false;
+let pagePhotos = [];
+let currentPhotoIndex = 0;
+let sitePhotosPromise = null;
+let photoLoadId = 0;
+let photoNavigationLoading = false;
+let photoNavigationError = false;
+let photoTransitionDirection = 0;
+let photoTransitionAnimation = null;
 const photoPointers = new Map();
 
 if (document.body && !prefersReducedMotion) {
@@ -52,6 +65,12 @@ if (pageTransitionOverlay && !prefersReducedMotion) {
     link.addEventListener("click", (event) => {
       const href = link.getAttribute("href") || "";
       if (
+        event.defaultPrevented ||
+        event.button !== 0 ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.shiftKey ||
+        event.altKey ||
         href === "" ||
         href.startsWith("#") ||
         href.startsWith("mailto:") ||
@@ -120,6 +139,14 @@ document.addEventListener("keydown", (event) => {
     return;
   }
 
+  if (photoDialog?.open && !photoNavigationLoading && !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+    if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+      event.preventDefault();
+      showPagePhoto(currentPhotoIndex + (event.key === "ArrowRight" ? 1 : -1));
+      return;
+    }
+  }
+
   if (event.key === "Escape" && menuToggle?.getAttribute("aria-expanded") === "true") {
     setMenuOpen(false);
     menuToggle.focus();
@@ -130,20 +157,148 @@ if (currentYear) {
   currentYear.textContent = new Date().getFullYear();
 }
 
+function getPagePhotos(pageDocument, baseUrl) {
+  const photos = [];
+  const sources = new Set();
+  pageDocument.querySelectorAll(
+    ".brand-logo-trigger, .hero-slide, .project-map-trigger, img.field-carousel-slide, .field-photo-trigger",
+  ).forEach((element) => {
+    let source;
+    let caption;
+    if (element.matches(".brand-logo-trigger")) {
+      source = element.querySelector(".brand-logo")?.getAttribute("src");
+      caption = "VA ROVIENG CO.,LTD logo";
+    } else if (element.matches(".project-map-trigger")) {
+      const map = element.querySelector(".project-map");
+      source = map?.getAttribute("src");
+      caption = map?.alt;
+    } else if (element instanceof HTMLImageElement) {
+      source = element.getAttribute("src");
+      caption = element.classList.contains("hero-slide")
+        ? element.dataset.caption || "Project photo"
+        : element.alt || "Carousel photo";
+    } else {
+      source = element.dataset.photoSrc;
+      caption = element.dataset.photoCaption;
+    }
+
+    if (source && caption) {
+      const url = new URL(source, baseUrl).href;
+      if (!sources.has(url)) {
+        sources.add(url);
+        photos.push({ source: url, caption });
+      }
+    }
+  });
+  return photos;
+}
+
+function getSitePhotos() {
+  if (!sitePhotosPromise) {
+    const pages = ["index.html", "presentations.html", "engineer.html", "scientific-researcher.html", "guiding-documents.html"];
+    sitePhotosPromise = Promise.all(pages.map(async (page) => {
+      const url = new URL(page, window.location.href);
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Could not load ${page}: HTTP ${response.status}`);
+      }
+      const pageDocument = new DOMParser().parseFromString(await response.text(), "text/html");
+      return getPagePhotos(pageDocument, url);
+    })).then((groups) => {
+      const sources = new Set();
+      return groups.flat().filter((photo) => {
+        if (sources.has(photo.source)) {
+          return false;
+        }
+        sources.add(photo.source);
+        return true;
+      });
+    }).catch((error) => {
+      sitePhotosPromise = null;
+      throw error;
+    });
+  }
+  return sitePhotosPromise;
+}
+
+function updatePhotoNavigation() {
+  if (photoPrevious) {
+    photoPrevious.disabled = photoNavigationLoading || currentPhotoIndex === 0;
+  }
+  if (photoNext) {
+    photoNext.disabled = photoNavigationLoading || currentPhotoIndex === pagePhotos.length - 1;
+  }
+  if (photoNavigationStatus) {
+    photoNavigationStatus.textContent = photoNavigationLoading
+      ? "Loading images from across the website…"
+      : photoNavigationError
+        ? "Could not load other pages. Showing this page only."
+        : `Image ${currentPhotoIndex + 1} of ${pagePhotos.length}`;
+  }
+}
+
+function showPagePhoto(index) {
+  if (photoNavigationLoading || index < 0 || index >= pagePhotos.length || !photoDialogImage || !photoDialogCaption) {
+    return;
+  }
+
+  photoTransitionDirection = photoDialog?.open ? Math.sign(index - currentPhotoIndex) : 0;
+  photoTransitionAnimation?.cancel();
+  photoTransitionAnimation = null;
+  currentPhotoIndex = index;
+  const { source, caption } = pagePhotos[index];
+  resetPhotoZoom();
+  photoDialogImage.src = source;
+  photoDialogImage.alt = caption;
+  photoDialogCaption.textContent = caption;
+  updatePhotoNavigation();
+  fitPhotoViewport();
+}
+
 function openPhotoViewer(source, caption) {
   if (!photoDialog || !photoDialogImage || !photoDialogCaption) {
     return;
   }
 
-  resetPhotoZoom();
-  photoDialogImage.src = source;
-  photoDialogImage.alt = caption;
-  photoDialogCaption.textContent = caption;
-  fitPhotoViewport();
+  pagePhotos = getPagePhotos(document, window.location.href);
+  const url = new URL(source, window.location.href).href;
+  let index = pagePhotos.findIndex((photo) => photo.source === url);
+  if (index === -1) {
+    index = pagePhotos.push({ source: url, caption }) - 1;
+  }
+  photoNavigationLoading = false;
+  photoNavigationError = false;
+  showPagePhoto(index);
+  const loadId = ++photoLoadId;
+  photoNavigationLoading = true;
+  updatePhotoNavigation();
   if (!photoDialog.open) {
     photoDialog.showModal();
   }
+  getSitePhotos().then((photos) => {
+    if (loadId !== photoLoadId || !photoDialog.open) {
+      return;
+    }
+    pagePhotos = photos;
+    currentPhotoIndex = pagePhotos.findIndex((photo) => photo.source === url);
+    if (currentPhotoIndex === -1) {
+      currentPhotoIndex = pagePhotos.push({ source: url, caption }) - 1;
+    }
+    photoNavigationLoading = false;
+    updatePhotoNavigation();
+  }).catch((error) => {
+    if (loadId !== photoLoadId || !photoDialog.open) {
+      return;
+    }
+    console.error("Could not load website images:", error);
+    photoNavigationLoading = false;
+    photoNavigationError = true;
+    updatePhotoNavigation();
+  });
 }
+
+photoPrevious?.addEventListener("click", () => showPagePhoto(currentPhotoIndex - 1));
+photoNext?.addEventListener("click", () => showPagePhoto(currentPhotoIndex + 1));
 
 function fitPhotoViewport() {
   if (!photoDialogViewport || !photoDialogImage?.naturalWidth) {
@@ -151,8 +306,12 @@ function fitPhotoViewport() {
   }
 
   const aspectRatio = photoDialogImage.naturalWidth / photoDialogImage.naturalHeight;
-  const maximumWidth = Math.min(window.innerWidth - 72, 1200);
-  const maximumHeight = Math.min(window.innerHeight * 0.68, 928);
+  const isMobileViewer = window.matchMedia("(max-width: 560px)").matches;
+  const maximumWidth = Math.max(1, Math.min(window.innerWidth - (isMobileViewer ? 72 : 176), 1200));
+  const maximumHeight = Math.max(
+    1,
+    Math.min(window.innerHeight * 0.78, window.innerHeight - (isMobileViewer ? 292 : 240), 1100),
+  );
   let width = maximumWidth;
   let height = width / aspectRatio;
 
@@ -233,8 +392,23 @@ function setPhotoZoom(nextZoom, anchorX, anchorY) {
   updatePhotoZoom();
 }
 
+photoZoomOut?.addEventListener("click", () => setPhotoZoom(photoZoom - 0.25));
+photoZoomIn?.addEventListener("click", () => setPhotoZoom(photoZoom + 0.25));
+
 if (photoDialogViewport) {
-  photoDialogImage?.addEventListener("load", fitPhotoViewport);
+  photoDialogImage?.addEventListener("load", () => {
+    fitPhotoViewport();
+    if (photoDialog.open && photoTransitionDirection !== 0 && !prefersReducedMotion) {
+      photoTransitionAnimation = photoDialogImage.animate(
+        [
+          { opacity: 0, translate: `${photoTransitionDirection * 12}px 0` },
+          { opacity: 1, translate: "0 0" },
+        ],
+        { duration: 260, easing: "ease-out" },
+      );
+    }
+    photoTransitionDirection = 0;
+  });
 
   photoDialogViewport.addEventListener("click", (event) => {
     if (photoIgnoreNextClick) {
@@ -279,7 +453,12 @@ if (photoDialogViewport) {
     if (photoPointers.size === 0) {
       photoPointerMoved = false;
     }
-    photoPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    photoPointers.set(event.pointerId, {
+      x: event.clientX,
+      y: event.clientY,
+      startX: event.clientX,
+      startY: event.clientY,
+    });
     photoDialogViewport.setPointerCapture(event.pointerId);
     if (photoPointers.size === 2) {
       const [first, second] = Array.from(photoPointers.values());
@@ -301,7 +480,7 @@ if (photoDialogViewport) {
     event.preventDefault();
     const previousX = pointer.x;
     const previousY = pointer.y;
-    if (Math.hypot(event.clientX - previousX, event.clientY - previousY) > 5) {
+    if (Math.hypot(event.clientX - pointer.startX, event.clientY - pointer.startY) > 5) {
       photoPointerMoved = true;
     }
     pointer.x = event.clientX;
