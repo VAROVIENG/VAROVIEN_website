@@ -44,6 +44,8 @@ va-rovieng-website/
 ### 3. Photo Viewer Modal
 - Full-screen photo viewing
 - Click on any photo to view larger
+- Use the zoom buttons, wheel, or pinch to zoom and drag to pan
+- Use the arrow buttons or keyboard arrows to browse viewable images across the site
 - Close with ESC key or click outside
 - Maintains accessibility features
 
