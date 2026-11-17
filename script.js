@@ -32,10 +32,6 @@ let photoPointerMoved = false;
 let photoIgnoreNextClick = false;
 let pagePhotos = [];
 let currentPhotoIndex = 0;
-let sitePhotosPromise = null;
-let photoLoadId = 0;
-let photoNavigationLoading = false;
-let photoNavigationError = false;
 let photoTransitionDirection = 0;
 let photoTransitionAnimation = null;
 const photoPointers = new Map();
@@ -139,7 +135,7 @@ document.addEventListener("keydown", (event) => {
     return;
   }
 
-  if (photoDialog?.open && !photoNavigationLoading && !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+  if (photoDialog?.open && !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
     if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
       event.preventDefault();
       showPagePhoto(currentPhotoIndex + (event.key === "ArrowRight" ? 1 : -1));
@@ -193,52 +189,20 @@ function getPagePhotos(pageDocument, baseUrl) {
   return photos;
 }
 
-function getSitePhotos() {
-  if (!sitePhotosPromise) {
-    const pages = ["index.html", "presentations.html", "engineer.html", "scientific-researcher.html", "guiding-documents.html"];
-    sitePhotosPromise = Promise.all(pages.map(async (page) => {
-      const url = new URL(page, window.location.href);
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`Could not load ${page}: HTTP ${response.status}`);
-      }
-      const pageDocument = new DOMParser().parseFromString(await response.text(), "text/html");
-      return getPagePhotos(pageDocument, url);
-    })).then((groups) => {
-      const sources = new Set();
-      return groups.flat().filter((photo) => {
-        if (sources.has(photo.source)) {
-          return false;
-        }
-        sources.add(photo.source);
-        return true;
-      });
-    }).catch((error) => {
-      sitePhotosPromise = null;
-      throw error;
-    });
-  }
-  return sitePhotosPromise;
-}
-
 function updatePhotoNavigation() {
   if (photoPrevious) {
-    photoPrevious.disabled = photoNavigationLoading || currentPhotoIndex === 0;
+    photoPrevious.disabled = currentPhotoIndex === 0;
   }
   if (photoNext) {
-    photoNext.disabled = photoNavigationLoading || currentPhotoIndex === pagePhotos.length - 1;
+    photoNext.disabled = currentPhotoIndex === pagePhotos.length - 1;
   }
   if (photoNavigationStatus) {
-    photoNavigationStatus.textContent = photoNavigationLoading
-      ? "Loading images from across the website…"
-      : photoNavigationError
-        ? "Could not load other pages. Showing this page only."
-        : `Image ${currentPhotoIndex + 1} of ${pagePhotos.length}`;
+    photoNavigationStatus.textContent = `Image ${currentPhotoIndex + 1} of ${pagePhotos.length}`;
   }
 }
 
 function showPagePhoto(index) {
-  if (photoNavigationLoading || index < 0 || index >= pagePhotos.length || !photoDialogImage || !photoDialogCaption) {
+  if (index < 0 || index >= pagePhotos.length || !photoDialogImage || !photoDialogCaption) {
     return;
   }
 
@@ -255,46 +219,21 @@ function showPagePhoto(index) {
   fitPhotoViewport();
 }
 
-function openPhotoViewer(source, caption) {
+function openPhotoViewer(source, caption, group) {
   if (!photoDialog || !photoDialogImage || !photoDialogCaption) {
     return;
   }
 
-  pagePhotos = getPagePhotos(document, window.location.href);
   const url = new URL(source, window.location.href).href;
+  pagePhotos = group ? getPagePhotos(group, window.location.href) : [];
   let index = pagePhotos.findIndex((photo) => photo.source === url);
   if (index === -1) {
     index = pagePhotos.push({ source: url, caption }) - 1;
   }
-  photoNavigationLoading = false;
-  photoNavigationError = false;
   showPagePhoto(index);
-  const loadId = ++photoLoadId;
-  photoNavigationLoading = true;
-  updatePhotoNavigation();
   if (!photoDialog.open) {
     photoDialog.showModal();
   }
-  getSitePhotos().then((photos) => {
-    if (loadId !== photoLoadId || !photoDialog.open) {
-      return;
-    }
-    pagePhotos = photos;
-    currentPhotoIndex = pagePhotos.findIndex((photo) => photo.source === url);
-    if (currentPhotoIndex === -1) {
-      currentPhotoIndex = pagePhotos.push({ source: url, caption }) - 1;
-    }
-    photoNavigationLoading = false;
-    updatePhotoNavigation();
-  }).catch((error) => {
-    if (loadId !== photoLoadId || !photoDialog.open) {
-      return;
-    }
-    console.error("Could not load website images:", error);
-    photoNavigationLoading = false;
-    photoNavigationError = true;
-    updatePhotoNavigation();
-  });
 }
 
 photoPrevious?.addEventListener("click", () => showPagePhoto(currentPhotoIndex - 1));
@@ -676,7 +615,7 @@ fieldCarousels.forEach((carousel) => {
         }
 
         event.preventDefault();
-        openPhotoViewer(slide.currentSrc || slide.src, caption);
+        openPhotoViewer(slide.currentSrc || slide.src, caption, carousel);
       });
       return;
     }
@@ -701,7 +640,7 @@ fieldCarousels.forEach((carousel) => {
     if (!(clickedSlide instanceof HTMLImageElement)) {
       return;
     }
-    openPhotoViewer(clickedSlide.currentSrc || clickedSlide.src, clickedSlide.alt || "Carousel photo");
+    openPhotoViewer(clickedSlide.currentSrc || clickedSlide.src, clickedSlide.alt || "Carousel photo", carousel);
   });
 
   frame.addEventListener("scroll", () => {
@@ -890,7 +829,7 @@ if (heroPhotoTrigger) {
   heroPhotoTrigger.addEventListener("click", () => {
     const activeSlide = heroSlides[activeSlideIndex];
     if (activeSlide) {
-      openPhotoViewer(activeSlide.src, activeSlide.dataset.caption || "Project photo");
+      openPhotoViewer(activeSlide.src, activeSlide.dataset.caption || "Project photo", heroPhotoTrigger);
     }
   });
 }
@@ -908,7 +847,7 @@ document.querySelectorAll(".field-photo-trigger").forEach((trigger) => {
     const source = trigger.dataset.photoSrc;
     const caption = trigger.dataset.photoCaption;
     if (source && caption) {
-      openPhotoViewer(source, caption);
+      openPhotoViewer(source, caption, trigger.closest(".certifications"));
     }
   });
 });
