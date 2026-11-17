@@ -448,20 +448,23 @@ button {
 }
 
 .photo-dialog {
+  min-width: min(calc(100vw - 2rem), 28rem);
   max-width: calc(100vw - 2rem);
   max-height: calc(100vh - 2rem);
   max-height: calc(100dvh - 2rem);
   margin: auto;
-  padding: 3.5rem 1rem 1rem;
+  padding: 1rem;
   overflow: auto;
-  border: 1px solid var(--line);
-  background: var(--ink);
-  color: var(--paper);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(34, 43, 58, 0.35) transparent;
+  border: 0;
+  background: transparent;
+  color: #202734;
 }
 
 .photo-dialog::backdrop {
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(8px);
+  background: rgba(237, 241, 247, 0.78);
+  backdrop-filter: blur(22px) saturate(130%);
 }
 
 .photo-dialog figure {
@@ -476,40 +479,118 @@ button {
   align-items: center;
   justify-content: center;
   flex-wrap: wrap;
-  gap: 0.35rem 0.75rem;
+  gap: 0.5rem;
   margin-bottom: 0.75rem;
+  padding-inline: 3.25rem;
+}
+
+.photo-zoom-group {
+  display: flex;
+  align-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  border-radius: 999px;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.85), rgba(225, 233, 244, 0.58));
+  box-shadow: inset 0 1px 2px #fff, 0 0.4rem 1.5rem rgba(58, 72, 96, 0.2);
+  backdrop-filter: blur(24px) saturate(160%);
 }
 
 .photo-zoom-level {
   min-width: 3.5rem;
-  color: var(--paper);
-  font-size: 0.8rem;
+  color: #202734;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.9rem;
   text-align: center;
+}
+
+.photo-dialog-controls button {
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #202734;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.photo-dialog-controls button:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
 }
 
 .photo-dialog-controls span {
   flex-basis: 100%;
-  color: var(--muted);
+  color: #343e4c;
   font-size: 0.72rem;
   text-align: center;
 }
 
+.photo-dialog-stage {
+  display: grid;
+  grid-template-columns: 2.75rem minmax(0, 1fr) 2.75rem;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.photo-previous,
+.photo-next {
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  place-items: center;
+  grid-row: 1;
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.95), rgba(232, 238, 246, 0.85));
+  color: #202734;
+  box-shadow: inset 0 1px 1px #fff, 0 0.25rem 1rem rgba(40, 50, 67, 0.25);
+  backdrop-filter: blur(20px) saturate(160%);
+  font-size: 1.8rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.photo-previous {
+  grid-column: 1;
+}
+
+.photo-next {
+  grid-column: 3;
+}
+
+.photo-previous:disabled,
+.photo-next:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.photo-previous:focus-visible,
+.photo-next:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
 .photo-dialog-viewport {
   display: grid;
-  width: min(calc(100vw - 4.5rem), 75rem);
-  max-width: min(calc(100vw - 4.5rem), 75rem);
-  max-height: min(68vh, 58rem);
-  max-height: min(68dvh, 58rem);
+  grid-column: 2;
+  grid-row: 1;
+  width: min(calc(100vw - 11rem), 75rem);
+  max-width: min(calc(100vw - 11rem), 75rem);
+  max-height: min(78vh, calc(100vh - 15rem), 68.75rem);
+  max-height: min(78dvh, calc(100dvh - 15rem), 68.75rem);
   place-items: center;
   overflow: hidden;
-  background: var(--ink);
+  border-radius: 0.75rem;
+  background: #e8edf2;
+  box-shadow: 0 0.6rem 2rem rgba(45, 54, 69, 0.2);
   cursor: zoom-in;
   touch-action: none;
   user-select: none;
 }
 
 .photo-dialog-viewport.is-zoomed {
-  cursor: zoom-out;
+  cursor: grab;
 }
 
 .photo-dialog-viewport.is-panning {
@@ -531,9 +612,22 @@ button {
 }
 
 .photo-dialog figcaption {
-  color: var(--muted);
-  font-size: 0.78rem;
+  max-width: 100%;
+  padding: 0.6rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  border-radius: 1.2rem;
+  background: rgba(248, 250, 253, 0.85);
+  color: #202734;
+  font-size: 0.82rem;
   text-align: center;
+  box-shadow: inset 0 1px 0 #fff, 0 0.4rem 1.5rem rgba(58, 72, 96, 0.16);
+  backdrop-filter: blur(20px) saturate(160%);
+}
+
+.photo-navigation-status {
+  display: block;
+  margin-top: 0.25rem;
+  color: #4a5564;
 }
 
 .photo-dialog-close {
@@ -544,16 +638,30 @@ button {
   width: 2.75rem;
   height: 2.75rem;
   place-items: center;
-  border: 1px solid var(--line);
-  background: var(--panel);
-  color: var(--paper);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.9), rgba(225, 233, 244, 0.7));
+  color: #202734;
+  box-shadow: inset 0 1px 1px #fff, 0 0.3rem 1rem rgba(58, 72, 96, 0.2);
+  backdrop-filter: blur(20px) saturate(160%);
   cursor: pointer;
   font-size: 1.4rem;
 }
 
 .photo-dialog-close:focus-visible {
-  border-color: var(--blue);
-  color: var(--gold-text);
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .photo-zoom-group,
+  .photo-previous,
+  .photo-next,
+  .photo-dialog-close,
+  .photo-dialog figcaption {
+    background: #f6f8fb;
+    backdrop-filter: none;
+  }
 }
 
 .eyebrow,
@@ -1502,6 +1610,32 @@ h2 em {
   .field-carousel-status {
     gap: 0.6rem;
   }
+
+  .photo-dialog-stage {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .photo-dialog-viewport {
+    grid-column: 1 / -1;
+    width: min(calc(100vw - 4.5rem), 75rem);
+    max-width: min(calc(100vw - 4.5rem), 75rem);
+    max-height: min(78vh, calc(100vh - 18.25rem), 68.75rem);
+    max-height: min(78dvh, calc(100dvh - 18.25rem), 68.75rem);
+  }
+
+  .photo-previous,
+  .photo-next {
+    grid-row: 2;
+  }
+
+  .photo-previous {
+    justify-self: end;
+  }
+
+  .photo-next {
+    grid-column: 2;
+    justify-self: start;
+  }
 }
 
 .credentials-page {
@@ -1548,6 +1682,40 @@ h2 em {
   font-size: clamp(1.2rem, 2vw, 1.55rem);
   font-style: italic;
   line-height: 1.3;
+}
+
+.credentials-page.scientific-researcher-page .presentation-heading {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.scientific-researcher-page .credentials-heading-title {
+  padding: clamp(1.5rem, 3.5vw, 3rem);
+  border: 1px solid rgba(140, 108, 0, 0.2);
+  border-left: 3px solid var(--gold);
+  background: var(--ink-soft);
+}
+
+.scientific-researcher-page .credentials-eyebrow {
+  margin-bottom: 0.85rem;
+  padding-left: 0;
+  border-left: 0;
+}
+
+.scientific-researcher-page .credentials-heading h1 {
+  max-width: none;
+  color: var(--gold-deep);
+  font-size: clamp(2.4rem, 4.2vw, 4.25rem);
+  line-height: 1.1;
+}
+
+.scientific-researcher-page .credentials-subtitle {
+  margin-top: 1rem;
+  color: var(--paper);
+  font-family: var(--sans);
+  font-size: 1rem;
+  font-style: normal;
+  line-height: 1.5;
 }
 
 .credentials-heading > .credentials-heading-copy {
@@ -2228,7 +2396,7 @@ h2 em {
   }
 
   .photo-dialog {
-    padding: 3.25rem 0.75rem 0.75rem;
+    padding: 0.75rem;
   }
 
   .hero h1 {
@@ -2290,6 +2458,10 @@ h2 em {
 
   .credentials-page .presentation-heading {
     padding-bottom: 1.75rem;
+  }
+
+  .scientific-researcher-page .credentials-heading-title {
+    margin-left: 1rem;
   }
 
   .credentials-page + .certifications {
@@ -2399,8 +2571,7 @@ h2 em {
   }
 
   .photo-dialog-close:hover {
-    border-color: var(--blue);
-    color: var(--gold-text);
+    background: rgba(255, 255, 255, 0.95);
   }
 
   .button-light:hover {
