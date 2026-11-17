@@ -129,9 +129,6 @@ The website follows WCAG 2.1 AA standards:
 
 This project is proprietary. All rights reserved to VA ROVIENG CO.,LTD.
 
-## 👤 Author
-
-Austin2709
 
 ## 📞 Contact
 
