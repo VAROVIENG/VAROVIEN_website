@@ -45,7 +45,7 @@ va-rovieng-website/
 - Full-screen photo viewing
 - Click on any photo to view larger
 - Use the zoom buttons, wheel, or pinch to zoom and drag to pan
-- Use the arrow buttons or keyboard arrows to browse viewable images across the site
+- Use the arrow buttons or keyboard arrows to browse images in the same carousel, hero slideshow, or certificates section; standalone images open on their own
 - Close with ESC key or click outside
 - Maintains accessibility features
 
