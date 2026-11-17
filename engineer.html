@@ -247,14 +247,22 @@
     <dialog class="photo-dialog" aria-labelledby="photo-dialog-caption">
       <button class="photo-dialog-close" type="button" aria-label="Close photo viewer">×</button>
       <div class="photo-dialog-controls" aria-label="Image zoom controls">
-        <output class="photo-zoom-level" aria-live="polite">100%</output>
-        <span>Click or tap the image to zoom; click again to reset. Scroll or pinch to zoom, drag to move.</span>
+        <div class="photo-zoom-group">
+          <button class="photo-zoom-out" type="button" aria-label="Zoom out">−</button>
+          <output class="photo-zoom-level" aria-live="polite">100%</output>
+          <button class="photo-zoom-in" type="button" aria-label="Zoom in">+</button>
+        </div>
+        <span>Click, scroll or pinch to zoom. Drag to move.</span>
       </div>
       <figure>
-        <div class="photo-dialog-viewport">
-          <img id="photo-dialog-image" alt="" />
+        <div class="photo-dialog-stage">
+          <div class="photo-dialog-viewport">
+            <img id="photo-dialog-image" alt="" />
+          </div>
+          <button class="photo-previous" type="button" aria-label="Previous image">‹</button>
+          <button class="photo-next" type="button" aria-label="Next image">›</button>
         </div>
-        <figcaption id="photo-dialog-caption"></figcaption>
+        <figcaption><span id="photo-dialog-caption"></span><span class="photo-navigation-status" role="status"></span></figcaption>
       </figure>
     </dialog>
 
